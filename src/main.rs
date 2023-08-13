@@ -41,7 +41,7 @@ const QUAD_SHAPES: [QuadshapeShape; 7] = [
         [
             &[(0, 0), (1, 0), (2, 0), (1, 1)], // Rotation 0
             &[(1, 0), (0, 1), (1, 1), (1, 2)], // Rotation 1
-            &[(0, 1), (1, 0), (1, 1), (2, 1)], // Rotation 2 
+            &[(0, 1), (1, 0), (1, 1), (2, 1)], // Rotation 2
             &[(1, 0), (1, 1), (1, 2), (2, 1)], // Rotation 3
         ],
         2,
@@ -373,9 +373,7 @@ fn quadshape_can_rotate(quadshape: &Quadshape, grid: &Grid) -> bool {
         active_block_texture: Rc::clone(&quadshape.active_block_texture),
     };
 
-    for &(block_x, block_y) in
-        QUAD_SHAPES[temp_quadshape.shape].0[temp_quadshape.rotation].iter()
-    {
+    for &(block_x, block_y) in QUAD_SHAPES[temp_quadshape.shape].0[temp_quadshape.rotation].iter() {
         let new_x = temp_quadshape.x + block_x;
         let new_y = temp_quadshape.y + block_y;
         if new_x < 0
@@ -383,10 +381,10 @@ fn quadshape_can_rotate(quadshape: &Quadshape, grid: &Grid) -> bool {
             || new_y >= GRID_HEIGHT as i32
             || (new_y >= 0 && grid.data[new_y as usize][new_x as usize].state == CellState::Locked)
         {
-            return false; 
+            return false;
         }
     }
-    true 
+    true
 }
 
 fn quadshape_collides(quadshape: &Quadshape, x: i32, y: i32, grid: &Grid) -> bool {
@@ -394,13 +392,13 @@ fn quadshape_collides(quadshape: &Quadshape, x: i32, y: i32, grid: &Grid) -> boo
         let new_x = x + block_x;
         let new_y = y + block_y;
         if new_x < 0 || new_x >= GRID_WIDTH as i32 || new_y >= GRID_HEIGHT as i32 {
-            return true; 
-    }
+            return true;
+        }
         if new_y >= 0 && grid.data[new_y as usize][new_x as usize].state == CellState::Locked {
             return true;
         }
     }
-    false 
+    false
 }
 
 fn update_game_state(game_state: &mut GameState, textures: Vec<Rc<Texture<Resources>>>) {
