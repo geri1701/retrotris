@@ -247,7 +247,7 @@ fn main() {
             update_game_state(&mut game_state, textures.clone());
         });
         window.draw_2d(&e, |c, g, device| {
-            let mut transform = c.transform.trans(10.0, 100.0);
+            let mut transform = c.transform.trans(50.0, 200.0);
             clear([0.0, 0.0, 0.0, 1.0], g);
             draw_game(&mut game_state, &textures, c, g, &mut glyphs);
             text::Text::new_color([0.0, 0.0, 0.0, 1.0], 22)
