@@ -34,6 +34,6 @@ Contributions are welcome! If you have any suggestions, bug fixes, or enhancemen
 
 This project is licensed under the MIT License.
 
-## Resources
+### Resources
 
 - [Piston - a modular open source game engine](http://www.piston.rs/)
