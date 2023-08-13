@@ -1,0 +1,16 @@
+[package]
+name = "retrotris"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Gerhard Schwanzer <geri@sdf.org>"]
+keywords = ["game", "graphics"]
+
+[dependencies]
+piston = "0.53.2"
+piston2d-graphics = "0.43.0"
+piston_window = "0.128.0"
+image = "0.24.7"
+rand = "0.8.5"
+gfx_device_gl = "0.16.2"
+find_folder = "0.3.0"
