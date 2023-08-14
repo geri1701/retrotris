@@ -8,7 +8,7 @@ Retrotris is a Rust implementation of a classic puzzle game, powered by the Pist
 - Challenge yourself with increasing difficulty levels.
 - Enjoy the nostalgia of the iconic retro-puzzle gameplay.
 
-### Installation
+### Build and run
 
 1. Clone this repository to your local machine:
 
@@ -20,10 +20,10 @@ git clone https://github.com/geri1701/retrotris.git
 ```sh
 cd retrotris
 ```
- 3. Install the game
+ 3. Build and run the game
 
 ```sh
-cargo install
+cargo run
 ```  
 
 ### Contributing
