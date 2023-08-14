@@ -195,7 +195,7 @@ fn main() {
     ];
     let bg_img = ::image::open("img/backg.png").unwrap();
     let (width, height) = bg_img.dimensions();
-    let mut window: PistonWindow = WindowSettings::new("dtris", [width, height])
+    let mut window: PistonWindow = WindowSettings::new("retrotris", [width, height])
         .graphics_api(OpenGL::V4_0)
         .exit_on_esc(true)
         .resizable(true)
