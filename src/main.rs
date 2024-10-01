@@ -1,12 +1,12 @@
-use ::image::GenericImageView;
-use gfx_device_gl::Resources;
-use graphics::context::Context;
-use piston::input::GenericEvent;
-use piston_window::Transformed;
-use piston_window::*;
-use rand::prelude::*;
-use std::ops::Deref;
-use std::rc::Rc;
+use {
+    ::image::GenericImageView,
+    gfx_device_gl::Resources,
+    graphics::context::Context,
+    piston::input::GenericEvent,
+    piston_window::*,
+    rand::prelude::*,
+    std::{ops::Deref, rc::Rc},
+};
 
 const CELL_SIZE: f64 = 24.0;
 const GRID_WIDTH: usize = 12;
@@ -180,7 +180,6 @@ impl Timer {
 }
 
 fn main() {
-    let event_settings = EventSettings::new().ups(60);
     let mut game_timers: [Timer; 10] = [
         Timer::new(1.0),
         Timer::new(0.9),
@@ -193,7 +192,7 @@ fn main() {
         Timer::new(0.2),
         Timer::new(0.1),
     ];
-    let bg_img = ::image::open("img/backg.png").unwrap();
+    let bg_img = ::image::open("assets/backg.png").unwrap();
     let (width, height) = bg_img.dimensions();
     let mut window: PistonWindow = WindowSettings::new("retrotris", [width, height])
         .graphics_api(OpenGL::V4_0)
@@ -202,9 +201,8 @@ fn main() {
         .build()
         .unwrap();
     let textures = load_textures(&mut window);
-    let textures_ref: &Vec<Rc<G2dTexture>> = &textures; // Reference to the vector
     let assets = find_folder::Search::ParentsThenKids(3, 3)
-        .for_folder("img")
+        .for_folder("assets")
         .unwrap();
     let mut glyphs = window.load_font(assets.join("FiraMono-Bold.ttf")).unwrap();
     let mut game_state = GameState {
@@ -217,8 +215,8 @@ fn main() {
         game_over: false,
         down_held: false,
     };
-    game_state.create_quadshape(textures_ref);
-    let mut events = Events::new(event_settings);
+    game_state.create_quadshape(&textures);
+    let mut events = Events::new(EventSettings::new().ups(60));
     window.set_lazy(true);
     while let Some(e) = events.next(&mut window) {
         if !game_state.game_over {
@@ -289,21 +287,18 @@ fn random_quadshape_index(rng: &mut ThreadRng) -> usize {
 }
 
 fn load_textures(window: &mut PistonWindow) -> Vec<Rc<G2dTexture>> {
-    let texture_paths = [
-        "img/dblue-block.png",
-        "img/green-block.png",
-        "img/lblue-block.png",
-        "img/orange-block.png",
-        "img/purple-block.png",
-        "img/red-block.png",
-        "img/yellow-block.png",
-        "img/inactive-block.png",
-        "img/backg.png",
-    ];
-
     let mut textures = Vec::new();
-
-    for path in &texture_paths {
+    for path in [
+        "assets/dblue-block.png",
+        "assets/green-block.png",
+        "assets/lblue-block.png",
+        "assets/orange-block.png",
+        "assets/purple-block.png",
+        "assets/red-block.png",
+        "assets/yellow-block.png",
+        "assets/inactive-block.png",
+        "assets/backg.png",
+    ] {
         let texture = Texture::from_path(
             &mut window.create_texture_context(),
             path,
@@ -322,10 +317,8 @@ fn move_quadshape_left(game_state: &mut GameState) {
         if new_x >= -1
             || QUAD_SHAPES[quadshape.shape].0[quadshape.rotation] != [(1, 0), (2, 0), (2, 1)]
         {
-            if new_x >= -1 {
-                if !quadshape_collides(quadshape, new_x, quadshape.y, &game_state.grid) {
-                    quadshape.x = new_x;
-                }
+            if new_x >= -1 && !quadshape_collides(quadshape, new_x, quadshape.y, &game_state.grid) {
+                quadshape.x = new_x;
             }
         }
     }
@@ -334,10 +327,10 @@ fn move_quadshape_left(game_state: &mut GameState) {
 fn move_quadshape_right(game_state: &mut GameState) {
     if let Some(ref mut quadshape) = game_state.active_quadshape {
         let new_x = quadshape.x + 1;
-        if new_x < GRID_WIDTH as i32 {
-            if !quadshape_collides(quadshape, new_x, quadshape.y, &game_state.grid) {
-                quadshape.x = new_x;
-            }
+        if new_x < GRID_WIDTH as i32
+            && !quadshape_collides(quadshape, new_x, quadshape.y, &game_state.grid)
+        {
+            quadshape.x = new_x;
         }
     }
 }
@@ -345,10 +338,10 @@ fn move_quadshape_right(game_state: &mut GameState) {
 fn move_quadshape_down(game_state: &mut GameState) {
     if let Some(ref mut quadshape) = game_state.active_quadshape {
         let new_y = quadshape.y + 1;
-        if new_y < GRID_HEIGHT as i32 {
-            if !quadshape_collides(quadshape, quadshape.x, new_y, &game_state.grid) {
-                quadshape.y = new_y;
-            }
+        if new_y < GRID_HEIGHT as i32
+            && !quadshape_collides(quadshape, quadshape.x, new_y, &game_state.grid)
+        {
+            quadshape.y = new_y;
         }
     }
 }
@@ -404,17 +397,13 @@ fn quadshape_collides(quadshape: &Quadshape, x: i32, y: i32, grid: &Grid) -> boo
 fn update_game_state(game_state: &mut GameState, textures: Vec<Rc<Texture<Resources>>>) {
     if game_state.down_held {
         move_quadshape_down(game_state);
+    } else if game_state.active_quadshape.is_none() {
+        game_state.create_quadshape(&textures);
+    } else if !quadshape_should_lock(game_state) {
+        move_quadshape_down(game_state);
     } else {
-        if game_state.active_quadshape.is_none() {
-            game_state.create_quadshape(&textures);
-        } else {
-            if !quadshape_should_lock(game_state) {
-                move_quadshape_down(game_state);
-            } else {
-                lock_quadshape(&textures, game_state);
-                clear_completed_rows(game_state);
-            }
-        }
+        lock_quadshape(&textures, game_state);
+        clear_completed_rows(game_state);
     }
 }
 
