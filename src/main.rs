@@ -124,6 +124,125 @@ struct GameState {
     down_held: bool,
 }
 impl GameState {
+    fn lock_quadshape(&mut self, textures: &[Rc<G2dTexture>]) {
+        if let Some(ref mut quadshape) = self.active_quadshape {
+            for &(block_x, block_y) in QUAD_SHAPES[quadshape.shape].0[quadshape.rotation].iter() {
+                let abs_x = quadshape.x + block_x;
+                let abs_y = quadshape.y + block_y;
+                self.grid.data[abs_y as usize][abs_x as usize].state = CellState::Locked;
+                self.grid.data[abs_y as usize][abs_x as usize].texture =
+                    Some(textures[7].deref().clone());
+            }
+        }
+        self.active_quadshape = None;
+    }
+    fn clear_completed_rows(&mut self) {
+        let mut rows_to_clear: Vec<usize> = Vec::new();
+        for y in 0..GRID_HEIGHT {
+            let mut rows_completed = true;
+            for x in 0..GRID_WIDTH {
+                if self.grid.data[y][x].state != CellState::Locked {
+                    rows_completed = false;
+                    break;
+                }
+            }
+            if rows_completed {
+                rows_to_clear.push(y);
+            }
+        }
+        if !rows_to_clear.is_empty() {
+            for &row in &rows_to_clear {
+                self.rows += 1;
+                for y in (1..=row).rev() {
+                    for x in 0..GRID_WIDTH {
+                        self.grid.data[y][x] = self.grid.data[y - 1][x].clone();
+                    }
+                }
+                for x in 0..GRID_WIDTH {
+                    self.grid.data[0][x] = GridCell::default();
+                }
+            }
+            let num_lines_cleared = rows_to_clear.len();
+            self.score += 100_usize * num_lines_cleared * num_lines_cleared;
+            self.level = self.score / 1000 + 1;
+        }
+    }
+    fn update_game_state(&mut self, textures: Vec<Rc<Texture<Resources>>>) {
+        if self.down_held {
+            self.move_quadshape_down();
+        } else if self.active_quadshape.is_none() {
+            self.create_quadshape(&textures);
+        } else if !self.quadshape_should_lock() {
+            self.move_quadshape_down();
+        } else {
+            self.lock_quadshape(&textures);
+            self.clear_completed_rows();
+        }
+    }
+    fn quadshape_should_lock(&self) -> bool {
+        if let Some(ref quadshape) = self.active_quadshape {
+            let new_y = quadshape.y + 1;
+            if new_y >= GRID_HEIGHT as i32 {
+                return true;
+            }
+            if quadshape_collides(quadshape, quadshape.x, new_y, &self.grid) {
+                return true;
+            }
+        }
+        false
+    }
+    fn move_quadshape_left(&mut self) {
+        if let Some(ref mut quadshape) = self.active_quadshape {
+            let new_x = quadshape.x - 1;
+            if new_x >= -1
+                || QUAD_SHAPES[quadshape.shape].0[quadshape.rotation] != [(1, 0), (2, 0), (2, 1)]
+            {
+                if new_x >= -1 && !quadshape_collides(quadshape, new_x, quadshape.y, &self.grid) {
+                    quadshape.x = new_x;
+                }
+            }
+        }
+    }
+
+    fn move_quadshape_right(&mut self) {
+        if let Some(ref mut quadshape) = self.active_quadshape {
+            let new_x = quadshape.x + 1;
+            if new_x < GRID_WIDTH as i32
+                && !quadshape_collides(quadshape, new_x, quadshape.y, &self.grid)
+            {
+                quadshape.x = new_x;
+            }
+        }
+    }
+
+    fn rotate_quadshape(&mut self) {
+        if let Some(ref mut quadshape) = self.active_quadshape {
+            if quadshape_can_rotate(quadshape, &self.grid) {
+                let new_rotation = (quadshape.rotation + 1) % 4;
+                quadshape.rotation = new_rotation;
+            }
+        }
+    }
+    fn move_quadshape_down(&mut self) {
+        if let Some(ref mut quadshape) = self.active_quadshape {
+            let new_y = quadshape.y + 1;
+            if new_y < GRID_HEIGHT as i32
+                && !quadshape_collides(quadshape, quadshape.x, new_y, &self.grid)
+            {
+                quadshape.y = new_y;
+            }
+        }
+    }
+    fn game_over_condition(&self) -> bool {
+        for &(x, y) in QUAD_SHAPES[0].0[0].iter() {
+            let abs_x = (GRID_WIDTH as i32 / 2) - 1 + x;
+            let abs_y = y;
+            if self.grid.data[abs_y as usize][abs_x as usize].state == CellState::Locked {
+                return true;
+            }
+        }
+        false
+    }
     fn create_quadshape(&mut self, textures: &[Rc<G2dTexture>]) {
         let mut rng = rand::thread_rng();
         let shape_index = random_quadshape_index(&mut rng);
@@ -192,8 +311,7 @@ fn main() {
         Timer::new(0.2),
         Timer::new(0.1),
     ];
-    let bg_img = ::image::open("assets/backg.png").unwrap();
-    let (width, height) = bg_img.dimensions();
+    let (width, height) = ::image::open("assets/backg.png").unwrap().dimensions();
     let mut window: PistonWindow = WindowSettings::new("retrotris", [width, height])
         .graphics_api(OpenGL::V4_0)
         .exit_on_esc(true)
@@ -220,13 +338,13 @@ fn main() {
     window.set_lazy(true);
     while let Some(e) = events.next(&mut window) {
         if !game_state.game_over {
-            game_state.game_over = game_over_condition(&game_state);
+            game_state.game_over = game_state.game_over_condition();
         }
         if let Some(Button::Keyboard(key)) = e.press_args() {
             match key {
-                Key::Up => rotate_quadshape(&mut game_state),
-                Key::Left => move_quadshape_left(&mut game_state),
-                Key::Right => move_quadshape_right(&mut game_state),
+                Key::Up => game_state.rotate_quadshape(),
+                Key::Left => game_state.move_quadshape_left(),
+                Key::Right => game_state.move_quadshape_right(),
                 Key::Down => {
                     game_state.down_held = true;
                 }
@@ -239,10 +357,10 @@ fn main() {
             }
         }
         if game_state.down_held {
-            move_quadshape_down(&mut game_state);
+            game_state.move_quadshape_down();
         }
         game_timers[game_state.level - 1_usize].event(&e, || {
-            update_game_state(&mut game_state, textures.clone());
+            game_state.update_game_state(textures.clone());
         });
         window.draw_2d(&e, |c, g, device| {
             let mut transform = c.transform.trans(50.0, 200.0);
@@ -311,50 +429,6 @@ fn load_textures(window: &mut PistonWindow) -> Vec<Rc<G2dTexture>> {
     textures
 }
 
-fn move_quadshape_left(game_state: &mut GameState) {
-    if let Some(ref mut quadshape) = game_state.active_quadshape {
-        let new_x = quadshape.x - 1;
-        if new_x >= -1
-            || QUAD_SHAPES[quadshape.shape].0[quadshape.rotation] != [(1, 0), (2, 0), (2, 1)]
-        {
-            if new_x >= -1 && !quadshape_collides(quadshape, new_x, quadshape.y, &game_state.grid) {
-                quadshape.x = new_x;
-            }
-        }
-    }
-}
-
-fn move_quadshape_right(game_state: &mut GameState) {
-    if let Some(ref mut quadshape) = game_state.active_quadshape {
-        let new_x = quadshape.x + 1;
-        if new_x < GRID_WIDTH as i32
-            && !quadshape_collides(quadshape, new_x, quadshape.y, &game_state.grid)
-        {
-            quadshape.x = new_x;
-        }
-    }
-}
-
-fn move_quadshape_down(game_state: &mut GameState) {
-    if let Some(ref mut quadshape) = game_state.active_quadshape {
-        let new_y = quadshape.y + 1;
-        if new_y < GRID_HEIGHT as i32
-            && !quadshape_collides(quadshape, quadshape.x, new_y, &game_state.grid)
-        {
-            quadshape.y = new_y;
-        }
-    }
-}
-
-fn rotate_quadshape(game_state: &mut GameState) {
-    if let Some(ref mut quadshape) = game_state.active_quadshape {
-        if quadshape_can_rotate(quadshape, &game_state.grid) {
-            let new_rotation = (quadshape.rotation + 1) % 4;
-            quadshape.rotation = new_rotation;
-        }
-    }
-}
-
 fn quadshape_can_rotate(quadshape: &Quadshape, grid: &Grid) -> bool {
     let new_rotation = (quadshape.rotation + 1) % 4;
 
@@ -388,88 +462,6 @@ fn quadshape_collides(quadshape: &Quadshape, x: i32, y: i32, grid: &Grid) -> boo
             return true;
         }
         if new_y >= 0 && grid.data[new_y as usize][new_x as usize].state == CellState::Locked {
-            return true;
-        }
-    }
-    false
-}
-
-fn update_game_state(game_state: &mut GameState, textures: Vec<Rc<Texture<Resources>>>) {
-    if game_state.down_held {
-        move_quadshape_down(game_state);
-    } else if game_state.active_quadshape.is_none() {
-        game_state.create_quadshape(&textures);
-    } else if !quadshape_should_lock(game_state) {
-        move_quadshape_down(game_state);
-    } else {
-        lock_quadshape(&textures, game_state);
-        clear_completed_rows(game_state);
-    }
-}
-
-fn quadshape_should_lock(game_state: &GameState) -> bool {
-    if let Some(ref quadshape) = game_state.active_quadshape {
-        let new_y = quadshape.y + 1;
-        if new_y >= GRID_HEIGHT as i32 {
-            return true;
-        }
-        if quadshape_collides(quadshape, quadshape.x, new_y, &game_state.grid) {
-            return true;
-        }
-    }
-    false
-}
-
-fn lock_quadshape(textures: &[Rc<G2dTexture>], game_state: &mut GameState) {
-    if let Some(ref mut quadshape) = game_state.active_quadshape {
-        for &(block_x, block_y) in QUAD_SHAPES[quadshape.shape].0[quadshape.rotation].iter() {
-            let abs_x = quadshape.x + block_x;
-            let abs_y = quadshape.y + block_y;
-            game_state.grid.data[abs_y as usize][abs_x as usize].state = CellState::Locked;
-            game_state.grid.data[abs_y as usize][abs_x as usize].texture =
-                Some(textures[7].deref().clone());
-        }
-    }
-    game_state.active_quadshape = None;
-}
-
-fn clear_completed_rows(game_state: &mut GameState) {
-    let mut rows_to_clear: Vec<usize> = Vec::new();
-    for y in 0..GRID_HEIGHT {
-        let mut rows_completed = true;
-        for x in 0..GRID_WIDTH {
-            if game_state.grid.data[y][x].state != CellState::Locked {
-                rows_completed = false;
-                break;
-            }
-        }
-        if rows_completed {
-            rows_to_clear.push(y);
-        }
-    }
-    if !rows_to_clear.is_empty() {
-        for &row in &rows_to_clear {
-            game_state.rows += 1;
-            for y in (1..=row).rev() {
-                for x in 0..GRID_WIDTH {
-                    game_state.grid.data[y][x] = game_state.grid.data[y - 1][x].clone();
-                }
-            }
-            for x in 0..GRID_WIDTH {
-                game_state.grid.data[0][x] = GridCell::default();
-            }
-        }
-        let num_lines_cleared = rows_to_clear.len();
-        game_state.score += 100_usize * num_lines_cleared * num_lines_cleared;
-        game_state.level = game_state.score / 1000 + 1;
-    }
-}
-
-fn game_over_condition(game_state: &GameState) -> bool {
-    for &(x, y) in QUAD_SHAPES[0].0[0].iter() {
-        let abs_x = (GRID_WIDTH as i32 / 2) - 1 + x;
-        let abs_y = y;
-        if game_state.grid.data[abs_y as usize][abs_x as usize].state == CellState::Locked {
             return true;
         }
     }
