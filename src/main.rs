@@ -123,6 +123,7 @@ struct GameState {
     game_over: bool,
     down_held: bool,
 }
+
 impl GameState {
     fn lock_quadshape(&mut self, textures: &[Rc<G2dTexture>]) {
         if let Some(ref mut quadshape) = self.active_quadshape {
@@ -136,6 +137,7 @@ impl GameState {
         }
         self.active_quadshape = None;
     }
+
     fn clear_completed_rows(&mut self) {
         let mut rows_to_clear: Vec<usize> = Vec::new();
         for y in 0..GRID_HEIGHT {
@@ -167,6 +169,7 @@ impl GameState {
             self.level = self.score / 1000 + 1;
         }
     }
+
     fn update_game_state(&mut self, textures: Vec<Rc<Texture<Resources>>>) {
         if self.down_held {
             self.move_quadshape_down();
@@ -179,6 +182,7 @@ impl GameState {
             self.clear_completed_rows();
         }
     }
+
     fn quadshape_should_lock(&self) -> bool {
         if let Some(ref quadshape) = self.active_quadshape {
             let new_y = quadshape.y + 1;
@@ -191,6 +195,7 @@ impl GameState {
         }
         false
     }
+
     fn move_quadshape_left(&mut self) {
         if let Some(ref mut quadshape) = self.active_quadshape {
             let new_x = quadshape.x - 1;
@@ -223,6 +228,7 @@ impl GameState {
             }
         }
     }
+
     fn move_quadshape_down(&mut self) {
         if let Some(ref mut quadshape) = self.active_quadshape {
             let new_y = quadshape.y + 1;
@@ -233,6 +239,7 @@ impl GameState {
             }
         }
     }
+
     fn game_over_condition(&self) -> bool {
         for &(x, y) in QUAD_SHAPES[0].0[0].iter() {
             let abs_x = (GRID_WIDTH as i32 / 2) - 1 + x;
@@ -243,6 +250,7 @@ impl GameState {
         }
         false
     }
+
     fn create_quadshape(&mut self, textures: &[Rc<G2dTexture>]) {
         let mut rng = rand::thread_rng();
         let shape_index = random_quadshape_index(&mut rng);
@@ -272,6 +280,7 @@ impl GameState {
         }
     }
 }
+
 pub struct Timer {
     pub interval: f64,
     pub time: f64,
@@ -431,7 +440,6 @@ fn load_textures(window: &mut PistonWindow) -> Vec<Rc<G2dTexture>> {
 
 fn quadshape_can_rotate(quadshape: &Quadshape, grid: &Grid) -> bool {
     let new_rotation = (quadshape.rotation + 1) % 4;
-
     let temp_quadshape = Quadshape {
         x: quadshape.x,
         y: quadshape.y,
@@ -439,7 +447,6 @@ fn quadshape_can_rotate(quadshape: &Quadshape, grid: &Grid) -> bool {
         rotation: new_rotation,
         active_block_texture: Rc::clone(&quadshape.active_block_texture),
     };
-
     for &(block_x, block_y) in QUAD_SHAPES[temp_quadshape.shape].0[temp_quadshape.rotation].iter() {
         let new_x = temp_quadshape.x + block_x;
         let new_y = temp_quadshape.y + block_y;
@@ -476,12 +483,10 @@ fn draw_game(
     glyphs: &mut Glyphs,
 ) {
     let bg_image = textures.last().unwrap();
-    let bg_width = bg_image.get_width() as f64;
-    let bg_height = bg_image.get_height() as f64;
     let grid_width_px = GRID_WIDTH as f64 * CELL_SIZE;
     let grid_height_px = GRID_HEIGHT as f64 * CELL_SIZE;
-    let horizontal_offset = (bg_width - grid_width_px) / 2.0;
-    let vertical_offset = (bg_height - grid_height_px) / 2.0;
+    let horizontal_offset = (bg_image.get_width() as f64 - grid_width_px) / 2.0;
+    let vertical_offset = (bg_image.get_height() as f64 - grid_height_px) / 2.0;
     image(bg_image.deref(), c.transform, g);
     draw_locked_blocks(
         game_state,
@@ -542,18 +547,15 @@ fn draw_locked_blocks(
     }
 }
 
-fn draw_game_over(game_state: &GameState, c: Context, g: &mut G2d, glyphs: &mut Glyphs) {
+fn draw_game_over(game_state: &GameState, context: Context, g2d: &mut G2d, glyphs: &mut Glyphs) {
     if game_state.game_over {
-        let message = "Game Over!";
-        let center_x = 580.0;
-        let center_y = 200.0;
         text::Text::new_color([1.0, 0.0, 0.0, 1.0], 22)
             .draw(
-                message,
+                "Game Over!",
                 glyphs,
-                &c.draw_state,
-                c.transform.trans(center_x, center_y),
-                g,
+                &context.draw_state,
+                context.transform.trans(580.0, 200.0),
+                g2d,
             )
             .unwrap();
     }
