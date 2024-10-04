@@ -14,7 +14,7 @@
         pkgs = import nixpkgs {
           inherit system overlays;
         };
-        rust = pkgs.rust-bin.stable."1.70.0".default.override {
+        rust = pkgs.rust-bin.stable."1.80.0".default.override {
           extensions = [
             "clippy-preview"
             "rust-src"
