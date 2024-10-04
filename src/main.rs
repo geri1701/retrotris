@@ -1,8 +1,8 @@
 use {
     ::image::GenericImageView,
     gfx_device_gl::Resources,
-    piston_window::graphics::context::Context,
     piston::input::GenericEvent,
+    piston_window::graphics::context::Context,
     piston_window::*,
     rand::prelude::*,
     std::{ops::Deref, rc::Rc},
