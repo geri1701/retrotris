@@ -1,7 +1,7 @@
 use {
     ::image::GenericImageView,
     gfx_device_gl::Resources,
-    graphics::context::Context,
+    piston_window::graphics::context::Context,
     piston::input::GenericEvent,
     piston_window::*,
     rand::prelude::*,
