@@ -9,7 +9,7 @@ keywords = ["game", "graphics"]
 [dependencies]
 piston = "1.0.0"
 piston2d-graphics = "0.43.0"
-piston_window = "0.128.0"
+piston_window = "0.132.0"
 image = "0.25.2"
 rand = "0.8.5"
 gfx_device_gl = "0.16.2"
