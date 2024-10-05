@@ -1,36 +1,52 @@
 {
+  description = "rust piston development";
   inputs = {
-    naersk.url = "github:nix-community/naersk/master";
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-    utils.url = "github:numtide/flake-utils";
+    nixpkgs.url      = "github:nixos/nixpkgs";
+    rust-overlay.url = "github:oxalica/rust-overlay";
+    flake-utils.url  = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, utils, naersk }:
-    utils.lib.eachDefaultSystem (system:
+  outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }:
+    flake-utils.lib.eachDefaultSystem (system:
+      with nixpkgs;
       let
-        pkgs = import nixpkgs { inherit system; };
-        naersk-lib = pkgs.callPackage naersk { };
-      in {
-        defaultPackage = naersk-lib.buildPackage ./.;
-        devShell = with pkgs;
-          mkShell {
-            buildInputs = [
-              cargo
-              rustc
-              rustfmt
-              pre-commit
-              rustPackages.clippy
-              xorg.libX11
-              xorg.libXext
-              xorg.libXinerama
-              xorg.libXcursor
-              xorg.libXrender
-              xorg.libXfixes
-              xorg.libXft
-              pango
-            ];
-            nativeBuildInputs = with pkgs; [ pkg-config openssl.dev curl ];
-            RUST_SRC_PATH = rustPlatform.rustLibSrc;
-          };
-      });
+        overlays = [ (import rust-overlay) ];
+        pkgs = import nixpkgs {
+          inherit system overlays;
+        };
+        rust = pkgs.rust-bin.stable."1.80.0".default.override {
+          extensions = [
+            "clippy-preview"
+            "rust-src"
+            "rustfmt-preview"
+            "rust-analysis"
+          ];
+        };
+      in
+      {
+        devShell = pkgs.mkShell rec {
+          buildInputs = [
+            rust
+            pkgs.rustup
+            pkgs.cmake
+            pkgs.pkg-config
+            pkgs.python39
+            pkgs.alsa-lib
+            pkgs.libGL
+            pkgs.xorg.libX11
+            pkgs.xorg.libXcursor
+            pkgs.xorg.libXrandr
+            pkgs.xorg.libXi
+            pkgs.vulkan-tools
+            pkgs.vulkan-headers
+            pkgs.vulkan-loader
+            pkgs.vulkan-validation-layers
+            pkgs.bacon
+            pkgs.cargo-show-asm
+          ];
+
+          LD_LIBRARY_PATH = "${lib.makeLibraryPath buildInputs}";
+        };
+      }
+    );
 }
