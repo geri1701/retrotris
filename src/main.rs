@@ -87,6 +87,7 @@ const QUAD_SHAPES: [QuadshapeShape; 7] = [
         6,
     ),
 ];
+
 #[derive(Clone)]
 struct Quadshape {
     x: i32,
@@ -108,6 +109,7 @@ struct GridCell {
     state: CellState,
     texture: Option<G2dTexture>,
 }
+
 #[derive(Clone, Default)]
 struct Grid {
     data: [[GridCell; GRID_WIDTH]; GRID_HEIGHT],
@@ -252,7 +254,7 @@ impl GameState {
     }
 
     fn create_quadshape(&mut self, textures: &[Rc<G2dTexture>]) {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let shape_index = random_quadshape_index(&mut rng);
         let shape = QUAD_SHAPES[shape_index];
         let rotation = 0;
@@ -410,7 +412,7 @@ fn main() {
 }
 
 fn random_quadshape_index(rng: &mut ThreadRng) -> usize {
-    rng.gen_range(0..QUAD_SHAPES.len())
+    rng.random_range(0..QUAD_SHAPES.len())
 }
 
 fn load_textures(window: &mut PistonWindow) -> Vec<Rc<G2dTexture>> {
