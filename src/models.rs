@@ -55,6 +55,30 @@ pub const QUAD_SHAPES: [[&[(i32, i32)]; 4]; 7] = [
     ],
 ];
 
+pub struct Timer {
+    pub interval: f64,
+    pub time: f64,
+    pub next: f64,
+}
+
+impl Timer {
+    pub fn new(interval: f64) -> Timer {
+        Timer {
+            interval,
+            time: 0.0,
+            next: 0.0,
+        }
+    }
+
+    pub fn event<F: FnMut()>(&mut self, dt: f64, mut f: F) {
+        self.time += dt;
+        while self.next <= self.time {
+            self.next += self.interval;
+            f();
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Quadshape {
     pub x: i32,
@@ -82,7 +106,6 @@ impl Model {
             for &(block_x, block_y) in QUAD_SHAPES[quadshape.shape][quadshape.rotation] {
                 let abs_x = quadshape.x + block_x;
                 let abs_y = quadshape.y + block_y;
-                //self.grid.data[abs_y as usize][abs_x as usize].state = CellState::Locked;
                 self.grid[abs_y as usize][abs_x as usize] = Some(7);
             }
         }
