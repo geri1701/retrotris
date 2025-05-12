@@ -13,6 +13,8 @@ use {
     },
 };
 
+const FONT_SIZE: u32 = 22;
+
 impl Model {
     fn draw_game(&mut self, textures: &[G2dTexture], c: Context, g: &mut G2d) {
         let bg_image = textures.last().unwrap();
@@ -147,47 +149,44 @@ impl Model {
             if let Some(args) = event.update_args() {
                 game_timers[self.level].event(args.dt, || self.update_game_state());
             }
-            window.draw_2d(&event, |c, g, device| {
-                let mut transform = c.transform.trans(50.0, 200.0);
-                piston_window::clear([0.0, 0.0, 0.0, 1.0], g);
-                self.draw_game(&textures, c, g);
+            window.draw_2d(&event, |context, g, device| {
+                piston_window::clear(piston_window::color::BLACK, g);
+                self.draw_game(&textures, context, g);
                 if self.game_over {
-                    piston_window::Text::new_color([1.0, 0.0, 0.0, 1.0], 22)
+                    piston_window::Text::new_color(piston_window::color::RED, FONT_SIZE)
                         .draw(
                             "Game Over!",
                             &mut glyphs,
-                            &c.draw_state,
-                            c.transform.trans(580.0, 200.0),
+                            &context.draw_state,
+                            context.transform.trans(580.0, 200.0),
                             g,
                         )
                         .unwrap();
                 }
-                piston_window::Text::new_color([0.0, 0.0, 0.0, 1.0], 22)
+                piston_window::Text::new_color(piston_window::color::OLIVE, FONT_SIZE)
                     .draw(
-                        &format!("{}: {}", "Score", &self.score.to_string()),
+                        &format!("Score: {}", &self.score),
                         &mut glyphs,
-                        &c.draw_state,
-                        transform,
+                        &context.draw_state,
+                        context.transform.trans(1000.0, 274.0),
                         g,
                     )
                     .unwrap();
-                transform = c.transform.trans(1000.0, 300.0);
-                piston_window::Text::new_color([0.0, 0.0, 0.0, 1.0], 22)
+                piston_window::Text::new_color(piston_window::color::OLIVE, FONT_SIZE)
                     .draw(
-                        &format!("{}: {}", "Level ", &self.level.to_string()),
+                        &format!("Level: {}", &self.level),
                         &mut glyphs,
-                        &c.draw_state,
-                        transform,
+                        &context.draw_state,
+                        context.transform.trans(1000.0, 300.0),
                         g,
                     )
                     .unwrap();
-                transform = c.transform.trans(1000.0, 326.0);
-                piston_window::Text::new_color([0.0, 0.0, 0.0, 1.0], 22)
+                piston_window::Text::new_color(piston_window::color::OLIVE, FONT_SIZE)
                     .draw(
-                        &format!("{}: {}", "Rows ", &self.rows.to_string()),
+                        &format!("Rows:  {}", &self.rows),
                         &mut glyphs,
-                        &c.draw_state,
-                        transform,
+                        &context.draw_state,
+                        context.transform.trans(1000.0, 326.0),
                         g,
                     )
                     .unwrap();
