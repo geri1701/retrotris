@@ -1,202 +1,265 @@
-mod models;
+mod elmish;
+mod model;
 
-use {
-    ::image::GenericImageView,
-    models::*,
-    piston::{
-        Button, EventLoop, EventSettings, Key, PressEvent, ReleaseEvent,
-        WindowSettings, UpdateEvent,
-    },
-    piston_window::{
-        graphics::context::Context, Flip, G2d, G2dTexture, ImageSize, PistonWindow,
-        Texture, TextureSettings, Transformed,
-    },
-};
+use {elmish::*, std::time};
 
-const FONT_SIZE: u32 = 22;
+const COLORS: [Color; 7] = [
+    Color::Green,
+    Color::Cyan,
+    Color::Blue,
+    Color::from_hex(0x6C71C4), //violet
+    Color::Magenta,
+    Color::Yellow,
+    Color::from_hex(0xCB4B16), //orange
+];
 
-impl Model {
-    fn draw_game(&mut self, textures: &[G2dTexture], c: Context, g: &mut G2d) {
-        let bg_image = textures.last().unwrap();
-        let grid_width_px = GRID_WIDTH as f64 * CELL_SIZE;
-        let grid_height_px = GRID_HEIGHT as f64 * CELL_SIZE;
-        let horizontal_offset = (bg_image.get_width() as f64 - grid_width_px) / 2.0;
-        let vertical_offset = (bg_image.get_height() as f64 - grid_height_px) / 2.0;
-        piston_window::image(bg_image, c.transform, g);
-        self.draw_locked_blocks(
-            textures,
-            c.trans(horizontal_offset, vertical_offset),
-            g,
-        );
-    }
-    fn draw_locked_blocks(&mut self, textures: &[G2dTexture], c: Context, g: &mut G2d) {
-        for y in 0..GRID_HEIGHT {
-            for x in 0..GRID_WIDTH {
-                if let Some(texture) = &self.grid[y][x] {
-                    piston_window::image(
-                        &textures[*texture],
-                        c.transform
-                            .trans((x as f64) * CELL_SIZE, (y as f64) * CELL_SIZE),
-                        g,
-                    );
-                }
-            }
-        }
-        if self.active_quadshape.is_none() {
-            self.active_quadshape = self.upcoming_quadshape.clone();
-            self.create_quadshape();
-        }
-        if let Some(ref quadshape) = self.active_quadshape {
-            let quadshape_x = quadshape.x as f64;
-            let quadshape_y = quadshape.y as f64;
+enum Message {
+    Play,
+    Down,
+    Rotate,
+    Shift(i32, usize),
+    Quit,
+}
 
-            for &(dx, dy) in QUAD_SHAPES[quadshape.shape][quadshape.rotation] {
-                let block_x = (quadshape_x + dx as f64) * CELL_SIZE;
-                let block_y = (quadshape_y + dy as f64) * CELL_SIZE;
-                piston_window::image(
-                    &textures[quadshape.active_block_texture],
-                    c.transform.trans(block_x, block_y),
-                    g,
-                );
-            }
-        }
-        if let Some(ref quadshape) = self.upcoming_quadshape {
-            let quadshape_x = 20.0;
-            let quadshape_y = 0.0;
-            for &(dx, dy) in QUAD_SHAPES[quadshape.shape][quadshape.rotation] {
-                let block_x = (quadshape_x + dx as f64) * CELL_SIZE;
-                let block_y = (quadshape_y + dy as f64) * CELL_SIZE;
-                piston_window::image(
-                    &textures[quadshape.active_block_texture],
-                    c.transform.trans(block_x, block_y),
-                    g,
-                );
-            }
-        }
-    }
-    fn handle(&mut self, event: &piston_window::Event) {
-        if let Some(Button::Keyboard(key)) = event.press_args() {
-            match key {
-                Key::Up => self.rotate_quadshape(),
-                Key::Left => self.move_quadshape_left(),
-                Key::Right => self.move_quadshape_right(),
-                Key::Down => self.down_held = true,
-                _ => {}
-            }
-        }
-        if let Some(Button::Keyboard(key)) = event.release_args() {
-            if key == Key::Down {
-                self.down_held = false;
-            }
-        }
-    }
-    fn run(&mut self, width: u32, height: u32) {
-        let mut window: PistonWindow = WindowSettings::new("retrotris", [width, height])
-            .graphics_api(piston_window::OpenGL::V4_0)
-            .exit_on_esc(true)
-            .resizable(true)
-            .build()
-            .unwrap();
-        let mut game_timers: [Timer; 10] = [
-            Timer::new(1.0),
-            Timer::new(0.9),
-            Timer::new(0.8),
-            Timer::new(0.7),
-            Timer::new(0.6),
-            Timer::new(0.5),
-            Timer::new(0.4),
-            Timer::new(0.3),
-            Timer::new(0.2),
-            Timer::new(0.1),
-        ];
-        let textures = [
-            "assets/dblue-block.png",
-            "assets/green-block.png",
-            "assets/lblue-block.png",
-            "assets/orange-block.png",
-            "assets/purple-block.png",
-            "assets/red-block.png",
-            "assets/yellow-block.png",
-            "assets/inactive-block.png",
-            "assets/backg.png",
-        ]
-        .iter()
-        .map(|path| {
-            Texture::from_path(
-                &mut window.create_texture_context(),
-                path,
-                Flip::None,
-                &TextureSettings::new(),
-            )
-            .unwrap()
-        })
-        .collect::<Vec<G2dTexture>>();
-        let assets = find_folder::Search::ParentsThenKids(3, 3)
-            .for_folder("assets")
-            .unwrap();
-        let mut glyphs = window.load_font(assets.join("FiraMono-Bold.ttf")).unwrap();
-        self.create_quadshape();
-        let mut events = piston_window::Events::new(EventSettings::new().ups(60));
-        window.set_lazy(true);
-        while let Some(event) = events.next(&mut window) {
-            if !self.game_over {
-                self.game_over = self.game_over_condition();
-            }
-            if self.down_held {
-                self.move_quadshape_down();
-            }
-            self.handle(&event);
-            if let Some(args) = event.update_args() {
-                game_timers[self.level].event(args.dt, || self.update_game_state());
-            }
-            window.draw_2d(&event, |context, g, device| {
-                piston_window::clear(piston_window::color::BLACK, g);
-                self.draw_game(&textures, context, g);
-                if self.game_over {
-                    piston_window::Text::new_color(piston_window::color::RED, FONT_SIZE)
-                        .draw(
-                            "Game Over!",
-                            &mut glyphs,
-                            &context.draw_state,
-                            context.transform.trans(580.0, 200.0),
-                            g,
-                        )
-                        .unwrap();
-                }
-                piston_window::Text::new_color(piston_window::color::OLIVE, FONT_SIZE)
-                    .draw(
-                        &format!("Score: {}", &self.score),
-                        &mut glyphs,
-                        &context.draw_state,
-                        context.transform.trans(1000.0, 274.0),
-                        g,
-                    )
-                    .unwrap();
-                piston_window::Text::new_color(piston_window::color::OLIVE, FONT_SIZE)
-                    .draw(
-                        &format!("Level: {}", &self.level),
-                        &mut glyphs,
-                        &context.draw_state,
-                        context.transform.trans(1000.0, 300.0),
-                        g,
-                    )
-                    .unwrap();
-                piston_window::Text::new_color(piston_window::color::OLIVE, FONT_SIZE)
-                    .draw(
-                        &format!("Rows:  {}", &self.rows),
-                        &mut glyphs,
-                        &context.draw_state,
-                        context.transform.trans(1000.0, 326.0),
-                        g,
-                    )
-                    .unwrap();
-                glyphs.factory.encoder.flush(device);
-            });
+struct Model {
+    game: model::Model,
+    time: time::Instant,
+    play: bool,
+}
+
+impl Default for Model {
+    fn default() -> Self {
+        Self {
+            game: model::Model::default(),
+            time: time::Instant::now(),
+            play: false,
         }
     }
 }
+impl Sandbox for Model {
+    type Msg = Message;
 
-fn main() {
-    let (width, height) = ::image::open("assets/backg.png").unwrap().dimensions();
-    Model::default().run(width, height);
+    fn subscription(&mut self) -> bool {
+        if self.play
+            && self.time.elapsed() >= time::Duration::from_millis(500 - 50 * self.game.value.1)
+        {
+            self.time = time::Instant::now();
+            if !self.game.play() {
+                self.play = false;
+                return true;
+            };
+        };
+        self.play
+    }
+
+    fn update(&mut self, _sender: Sender<Self::Msg>, message: Self::Msg) -> Option<bool> {
+        match message {
+            Self::Msg::Quit => None,
+            Self::Msg::Play => {
+                self.game.set_curr();
+                self.game.set_grid();
+                self.time = time::Instant::now();
+                self.play = !self.play;
+                Some(false)
+            }
+            Self::Msg::Down => {
+                if self.play {
+                    self.game.down();
+                }
+                Some(self.play)
+            }
+            Self::Msg::Rotate => {
+                if self.play {
+                    self.game.rotate();
+                }
+                Some(self.play)
+            }
+            Self::Msg::Shift(x, y) => {
+                if self.play {
+                    self.game.shift((x, y));
+                }
+                Some(self.play)
+            }
+        }
+    }
+
+    fn view(&self, sender: Sender<Self::Msg>) -> Flex {
+        const NAME: &str = "Game::Tetris";
+        let play = self.play;
+        let value = self.game.value;
+        let field = self.game.field();
+        let next = self.game.next();
+        cascade!(
+            Flex::default_fill();
+            ..set_label(NAME);
+            ..set_frame(FrameType::FlatBox);
+            ..set_margin(0);
+            ..set_pad(0);
+            ..end();
+            ..set_callback(clone!(#[strong] sender, move |flex| {
+                flex.take_focus().unwrap();
+                if is_close() {
+                    sender.send(Self::Msg::Quit).unwrap();
+                }
+            }));
+            ..handle(clone!(#[strong] sender, move |_, event| match event {
+                Event::Focus => true,
+                Event::KeyDown => {
+                    const LEFT: Key = Key::from_char('a');
+                    const RIGHT: Key = Key::from_char('d');
+                    const UP: Key = Key::from_char('w');
+                    const DOWN: Key = Key::from_char('s');
+                    match app::event_key() {
+                        Key::Escape => sender.send(Self::Msg::Quit).unwrap(),
+                        Key::Enter => sender.send(Self::Msg::Play).unwrap(),
+                        Key::Up | UP => sender.send(Self::Msg::Rotate).unwrap(),
+                        Key::Down | DOWN => sender.send(Self::Msg::Down).unwrap(),
+                        Key::Left | LEFT => sender.send(Self::Msg::Shift(-1, 0)).unwrap(),
+                        Key::Right | RIGHT => sender.send(Self::Msg::Shift(1, 0)).unwrap(),
+                        _ => return false,
+                    }
+                    true
+                }
+                _ => false,
+            }));
+            ..draw(move |flex| {
+                draw::draw_rect_fill(0, 0, flex.width(), flex.height(), Color::Foreground);
+                if play {
+                    draw::draw_rect_fill(0, 0, flex.width(), flex.height(), Color::Foreground);
+                    let (x, y, h) = draw_field(flex, &field);
+                    let (x, y) = draw_next(x, y, h, next);
+                    draw_value(x, y, h, value.0);
+                } else {
+                    draw_welcome(flex, NAME);
+                }
+            });
+        )
+    }
+}
+
+fn draw_welcome(flex: &Flex, title: &str) {
+    draw::draw_rect_fill(
+        PAD,
+        PAD,
+        flex.width() - 2 * PAD,
+        flex.height() - 2 * PAD,
+        Color::Background,
+    );
+    draw::set_font(Font::CourierBold, 22);
+    draw::set_draw_color(Color::Green);
+    draw::draw_text2(
+        &figleter::FIGfont::standard()
+            .unwrap()
+            .convert(title)
+            .unwrap()
+            .to_string(),
+        0,
+        flex.height() / 2,
+        flex.width(),
+        HEIGHT,
+        Align::Center,
+    );
+    draw::set_draw_color(Color::Red);
+    draw::draw_text2(
+        &cascade!(
+            Table::new();
+            ..load_preset(presets::UTF8_FULL);
+            ..apply_modifier(modifiers::UTF8_ROUND_CORNERS);
+            ..add_row(["PRESS ENTER"]);
+        )
+        .to_string(),
+        0,
+        flex.height() / 4 * 3,
+        flex.width(),
+        HEIGHT,
+        Align::Center,
+    );
+}
+
+fn draw_field(flex: &Flex, table: &Vec<Vec<Option<usize>>>) -> (i32, i32, i32) {
+    let pad: i32 = 1;
+    let height: i32 =
+        (flex.height() - 2 * PAD - pad * (table.len() as i32 + 1)) / table.len() as i32;
+    let ww = height * table[0].len() as i32 + pad * (table[0].len() as i32 - 1) + 2 * PAD;
+    let hh = height * table.len() as i32 + pad * (table.len() as i32 - 1) + 2 * PAD;
+    let x = (flex.width() - ww) / 2;
+    let y = (flex.height() - hh) / 2;
+    let mut xx = x;
+    let mut yy = y;
+    let mut xxx = 0;
+    xx += PAD;
+    yy += PAD;
+    for line in table {
+        for cell in line {
+            draw::draw_rect_fill(
+                xx,
+                yy,
+                height,
+                height,
+                match cell {
+                    None => Color::Background2,
+                    Some(idx) => COLORS[*idx],
+                },
+            );
+            xx += pad + height;
+            xxx = xx
+        }
+        yy += pad + height;
+        xx = x + PAD;
+    }
+    (xxx + PAD, y, height)
+}
+
+fn draw_next(x: i32, y: i32, height: i32, table: [[Option<usize>; 4]; 4]) -> (i32, i32) {
+    let pad: i32 = 1;
+    let mut xx = x;
+    let mut yy = y;
+    xx += PAD;
+    yy += PAD;
+    for line in table {
+        for cell in line {
+            draw::draw_rect_fill(
+                xx,
+                yy,
+                height,
+                height,
+                match cell {
+                    None => Color::Foreground,
+                    Some(idx) => COLORS[idx],
+                },
+            );
+            xx += pad + height;
+        }
+        yy += pad + height;
+        xx = x + PAD;
+    }
+    (xx, yy)
+}
+
+fn draw_value(x: i32, y: i32, h: i32, v: i32) {
+    let mut yy = y + 1 + h;
+    draw::set_draw_color(Color::Background2);
+    draw::set_font(Font::CourierBold, h);
+    draw::draw_text2(&format!("Score:\t{v}"), x, yy, WIDTH, h, Align::Left);
+    for line in [
+        "PRESS:",
+        "\t<UP>\trotate",
+        "\t<DOWN>\tfast down",
+        "\t<LEFT>\tmove left",
+        "\t<RIGHT>\tmove right",
+        "\t<ENTER>\texit to menu",
+        "\t<ESC>\texit from game",
+    ] {
+        yy += 2 * h + 2;
+        draw::draw_text2(line, x, yy, line.len() as i32 * h, h, Align::Left);
+    }
+}
+
+fn main() -> Result<(), FltkError> {
+    Model::run(Settings {
+        size: (960, 540),
+        fullscreen: true,
+        icon: Some(SvgImage::from_data(include_str!("../assets/logo.svg")).unwrap()),
+        ..Default::default()
+    })
 }

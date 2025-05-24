@@ -7,9 +7,9 @@ authors = ["Gerhard Schwanzer <geri@sdf.org>"]
 keywords = ["game", "graphics"]
 
 [dependencies]
-piston = "1.0.0"
-piston2d-graphics = "0.45.0"
-piston_window = "0.132.0"
-image = "0.25.2"
+figleter = { version = "0.2.2" }
+comfy-table = "7"
+cascade = "1.0"
 rand = "0.9.1"
-find_folder = "0.3.0"
+fltk = { version = "1.5" }
+glib = "0.20"
