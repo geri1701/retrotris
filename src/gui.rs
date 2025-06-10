@@ -5,9 +5,9 @@ pub use {
     cascade::cascade,
     comfy_table::{modifiers, presets, Table},
     fltk::{
-        app::{event_coords, event_key},
+        app::event_key,
         draw,
-        enums::{Align, Color, Cursor, Event, Font, Key},
+        enums::{Align, Color, Event, Font, Key},
         image::SvgImage,
         prelude::*,
     },
