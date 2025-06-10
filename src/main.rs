@@ -1,6 +1,6 @@
 mod gui;
-mod model;
-use {gui::*, model::*, std::time};
+mod models;
+use {gui::*, models::*, std::time};
 
 const COLORS: [Color; 7] = [
     Color::Green,
