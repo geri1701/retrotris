@@ -1,12 +1,12 @@
 {
-  description = "rust piston development";
+  description = "rust development (retrotris)";
   inputs = {
     nixpkgs.url      = "github:nixos/nixpkgs";
     rust-overlay.url = "github:oxalica/rust-overlay";
     flake-utils.url  = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, rust-overlay, flake-utils, ... }:
+  outputs = {  nixpkgs, rust-overlay, flake-utils, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       with nixpkgs;
       let
@@ -14,7 +14,7 @@
         pkgs = import nixpkgs {
           inherit system overlays;
         };
-        rust = pkgs.rust-bin.stable."1.80.0".default.override {
+        rust = pkgs.rust-bin.nightly.latest.default.override {
           extensions = [
             "clippy-preview"
             "rust-src"
@@ -30,7 +30,7 @@
             pkgs.rustup
             pkgs.cmake
             pkgs.pkg-config
-            pkgs.python39
+            pkgs.python310
             pkgs.alsa-lib
             pkgs.libGL
             pkgs.xorg.libX11
@@ -43,6 +43,14 @@
             pkgs.vulkan-validation-layers
             pkgs.bacon
             pkgs.cargo-show-asm
+            pkgs.doxygen
+            pkgs.xorg.libXft
+            pkgs.glib
+            pkgs.glib-networking
+            pkgs.gobject-introspection
+            pkgs.xorg.libXinerama
+            pkgs.pango
+            pkgs.cairo
           ];
 
           LD_LIBRARY_PATH = "${lib.makeLibraryPath buildInputs}";
