@@ -1,6 +1,6 @@
 # retrotris
 ![Gameplay](assets/swappy-20230813_213201.png)
-Retrotris is a Rust implementation of a classic puzzle game, powered by the Piston game engine. This project is crafted as a personal endeavor to explore the capabilities of the Piston engine and enhance Rust programming skills.
+retrotris is a Rust remake of the classic falling blocks puzzle game, created and maintained by a growing group of contributors. It showcases Rust-powered game development and uses the [FLTK](https://crates.io/crates/fltk) crate for its user interface.
 
 ## Features
 
@@ -33,7 +33,3 @@ Contributions are welcome! If you have any suggestions, bug fixes, or enhancemen
 ### License
 
 This project is licensed under the MIT License.
-
-### Resources
-
-- [Piston - a modular open source game engine](http://www.piston.rs/)
