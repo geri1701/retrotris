@@ -1,4 +1,4 @@
-use fltk::{app, misc::Tooltip, window::Window};
+pub use fltk::{app, misc::Tooltip, window::Window};
 use std::sync::{Arc, RwLock};
 
 pub use {
@@ -20,9 +20,9 @@ pub const WIDTH: i32 = 3 * HEIGHT;
 
 #[derive(Default)]
 pub struct Settings {
-    pub size: (i32, i32),
     pub fullscreen: bool,
-    pub font_size: u8,
+    pub size: Option<(i32, i32)>,
+    pub font_size: Option<u8>,
     pub font: Option<Font>,
     pub xclass: Option<&'static str>,
     pub icon: Option<SvgImage>,
@@ -31,18 +31,9 @@ pub struct Settings {
 impl Settings {
     pub fn config(&self) -> Window {
         set_theme(0);
-        app::set_visible_focus(false);
         app::set_font(self.font.unwrap_or(Font::CourierBold));
-        Tooltip::set_color(Color::Background2);
-        Tooltip::set_text_color(Color::Foreground);
-        app::set_font_size(match self.font_size {
-            0 => 14,
-            _ => self.font_size,
-        });
-        let (w, h) = match self.size {
-            (0, 0) => (360, 640),
-            _ => self.size,
-        };
+        app::set_font_size(self.font_size.unwrap_or(14));
+        let (w, h) = self.size.unwrap_or((360, 640));
         cascade!(
             Window::default().with_size(w, h).center_screen();
             ..set_xclass(&self.xclass.unwrap_or("FLTK"));
@@ -50,58 +41,63 @@ impl Settings {
             ..fullscreen(self.fullscreen);
             ..make_resizable(true);
             ..set_icon(self.icon.clone());
-            ..set_callback(move |window| {
-                if let Some(mut child) = window.child(0) {
-                    child.do_callback();
-                    window.set_label(&child.label());
-                };
-            });
             ..end();
+            ..show();
         )
     }
 }
 
-pub trait Game {
-    fn handle(&mut self, widget: &mut impl WidgetExt, event: Event) -> bool;
-    fn draw(&self, widget: &impl WidgetExt);
-    fn update(&mut self) -> Option<bool>;
-    fn run(settings: Settings) -> Result<(), FltkError>
-    where
-        Self: Sized + Default + 'static,
-    {
+pub trait Console
+where
+    Self: Default + 'static,
+{
+    fn exit(&self) {}
+    fn handle(&mut self, window: &mut Window, event: Event) -> bool;
+    fn draw(&self, window: &mut Window);
+    fn update(&mut self, _: &mut Window) {}
+    fn connect(window: &mut Window) {
         let state = Arc::new(RwLock::new(Self::default()));
-        let mut container = cascade!(
-            settings.config();
-            ..show();
-            ..set_callback(move |_widget| {
-                if is_close() {
-                    app::quit();
-                }
-            });
-            ..handle(clone!(#[strong] state, move |widget, event| state.write().unwrap().handle(widget, event)));
-            ..draw(clone!(#[strong] state, move |widget| state.read().unwrap().draw(widget)));
-        );
-        app::add_idle3(clone!(
+        window.handle({
+            let state = state.clone();
+            move |window, event| state.write().unwrap().handle(window, event)
+        });
+        window.draw({
+            let state = state.clone();
+            move |window| state.read().unwrap().draw(window)
+        });
+        window.handle_event(Event::Resize);
+        window.set_callback(clone!(
             #[strong]
             state,
-            move |_| {
-                if let Some(value) = state.write().unwrap().update() {
-                    if value {
-                        container.redraw();
-                    }
-                    std::thread::sleep(std::time::Duration::from_millis(20));
+            move |window| {
+                if is_close() {
+                    state.read().unwrap().exit();
+                    window.hide();
                 } else {
-                    std::process::exit(0);
+                    state.write().unwrap().update(window);
                 }
             }
         ));
-        app::App::default().run()
     }
+    fn run(settings: Settings) -> Result<(), FltkError> {
+        let mut container = settings.config();
+        Self::connect(&mut container);
+        runtime(container)
+    }
+}
+
+fn runtime(mut container: Window) -> Result<(), FltkError> {
+    app::add_idle3(move |_| {
+        container.do_callback();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    });
+    app::App::default().run()
 }
 
 pub fn is_close() -> bool {
     app::event() == Event::Close
 }
+
 pub fn set_theme(theme: usize) {
     const COLOR: [[u32; 5]; 4] = [
         [
@@ -138,6 +134,9 @@ pub fn set_theme(theme: usize) {
         ],
     ];
     let color = COLOR[theme];
+    Tooltip::set_color(Color::Background2);
+    Tooltip::set_text_color(Color::Foreground);
+    //app::set_visible_focus(false);
     app::set_scheme(match theme % 2 {
         1 => app::Scheme::Gtk,
         _ => app::Scheme::Oxy,
@@ -165,4 +164,56 @@ pub fn set_theme(theme: usize) {
     }
     app::set_visible_focus(false);
     app::redraw();
+}
+
+pub trait Paint {
+    fn welcome(&self, title: &str, menu: &[&[&str]]);
+    fn background(&self);
+}
+
+impl Paint for Window {
+    fn background(&self) {
+        draw::draw_rect_fill(0, 0, self.width(), self.height(), Color::Foreground);
+        draw::draw_rect_fill(
+            PAD,
+            PAD,
+            self.width() - 2 * PAD,
+            self.height() - 2 * PAD,
+            Color::Background,
+        );
+        draw::set_font(Font::CourierBold, 22);
+    }
+    fn welcome(&self, title: &str, menu: &[&[&str]]) {
+        draw::set_draw_color(Color::Green);
+        draw::draw_text2(
+            &figleter::FIGfont::standard()
+                .unwrap()
+                .convert(title)
+                .unwrap()
+                .to_string(),
+            0,
+            self.height() / 3,
+            self.width(),
+            HEIGHT,
+            Align::Center,
+        );
+        draw::set_draw_color(Color::Red);
+        draw::draw_text2(
+            &{
+                let mut table = Table::new();
+                table.load_preset(presets::UTF8_FULL);
+                table.apply_modifier(modifiers::UTF8_ROUND_CORNERS);
+                for row in menu {
+                    table.add_row(*row);
+                }
+                table
+            }
+            .to_string(),
+            0,
+            self.height() / 4 * 3,
+            self.width(),
+            HEIGHT,
+            Align::Center,
+        );
+    }
 }
