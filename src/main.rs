@@ -9,25 +9,33 @@ pub enum Game {
     #[default]
     Tetris,
     Snake,
+    Bird,
+    Pong,
 }
 
 impl Game {
     fn switch(&self) -> Self {
         match self {
-            Self::Snake => Self::Tetris,
             Self::Tetris => Self::Snake,
+            Self::Snake => Self::Bird,
+            Self::Bird => Self::Pong,
+            Self::Pong => Self::Tetris,
         }
     }
     fn to_str(&self) -> &str {
         match self {
-            Self::Snake => "Snake",
             Self::Tetris => "Tetris",
+            Self::Snake => "Snake",
+            Self::Bird => "Bird",
+            Self::Pong => "Pong",
         }
     }
     fn to_play(&self, window: &mut Window) {
         match self {
-            Self::Snake => games::snake::Model::connect(window),
             Self::Tetris => games::tetris::Model::connect(window),
+            Self::Snake => games::snake::Model::connect(window),
+            Self::Bird => games::bird::Model::connect(window),
+            Self::Pong => games::pong::Model::connect(window),
         }
     }
 }
@@ -36,6 +44,7 @@ impl Game {
 pub struct Model(Game);
 
 impl Console for Model {
+    fn update(&mut self, _dt: f32) {}
     fn handle(&mut self, window: &mut Window, event: Event) -> bool {
         match event {
             Event::Focus => true,
@@ -53,10 +62,11 @@ impl Console for Model {
         }
     }
     fn draw(&self, window: &mut Window) {
-        window.background();
-        window.welcome(
-            self.0.to_str(),
+        window.draw_background(Color::Background);
+        window.draw_welcome(
+            "Games",
             &[
+                &["GAMES:", self.0.to_str()],
                 &["PRESS TAB", "for switch"],
                 &["PRESS ENTER", "for play"],
                 &["PRESS ESC", "for exit"],
@@ -67,8 +77,8 @@ impl Console for Model {
 
 fn main() -> Result<(), FltkError> {
     Model::run(Settings {
-        size: Some((960, 540)),
         fullscreen: true,
+        size: Some((SCREEN_WIDTH, SCREEN_HEIGHT)),
         icon: Some(SvgImage::from_data(include_str!("../assets/logo.svg")).unwrap()),
         ..Default::default()
     })

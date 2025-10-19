@@ -1,18 +1,27 @@
-pub use fltk::{app, misc::Tooltip, window::Window};
-use std::sync::{Arc, RwLock};
-
 pub use {
     cascade::cascade,
     comfy_table::{modifiers, presets, Table},
     fltk::{
+        app,
+        app::event_coords,
         app::event_key,
         draw,
-        enums::{Align, Color, Event, Font, Key},
+        enums::{Align, Color, Cursor, Event, Font, Key},
         image::SvgImage,
+        misc::Tooltip,
         prelude::*,
+        window::Window,
     },
-    glib::clone,
+    std::{
+        sync::{Arc, RwLock},
+        time::{Duration, Instant},
+    },
 };
+
+pub const SCREEN_WIDTH: i32 = 960;
+pub const SCREEN_HEIGHT: i32 = 540;
+pub const COLS: i32 = SCREEN_WIDTH / 20;
+pub const ROWS: i32 = SCREEN_HEIGHT / 20;
 
 pub const PAD: i32 = 10;
 pub const HEIGHT: i32 = 3 * PAD;
@@ -51,47 +60,40 @@ pub trait Console
 where
     Self: Default + 'static,
 {
-    fn exit(&self) {}
     fn handle(&mut self, window: &mut Window, event: Event) -> bool;
     fn draw(&self, window: &mut Window);
-    fn update(&mut self, _: &mut Window) {}
+    fn update(&mut self, dt: f32);
     fn connect(window: &mut Window) {
         let state = Arc::new(RwLock::new(Self::default()));
+        let mut time = Instant::now();
+        window.draw({
+            let state = state.clone();
+            move |window| {
+                state.write().unwrap().update(time.elapsed().as_secs_f32());
+                state.read().unwrap().draw(window);
+                time = Instant::now();
+            }
+        });
         window.handle({
             let state = state.clone();
             move |window, event| state.write().unwrap().handle(window, event)
         });
-        window.draw({
-            let state = state.clone();
-            move |window| state.read().unwrap().draw(window)
-        });
         window.handle_event(Event::Resize);
-        window.set_callback(clone!(
-            #[strong]
-            state,
-            move |window| {
-                if is_close() {
-                    state.read().unwrap().exit();
-                    window.hide();
-                } else {
-                    state.write().unwrap().update(window);
-                }
+        window.set_callback(move |window| {
+            if is_close() {
+                window.hide();
             }
-        ));
+        });
     }
     fn run(settings: Settings) -> Result<(), FltkError> {
-        let mut container = settings.config();
-        Self::connect(&mut container);
-        runtime(container)
+        let mut window = settings.config();
+        Self::connect(&mut window);
+        app::add_idle3(move |_| {
+            window.redraw();
+            std::thread::sleep(Duration::from_millis(20));
+        });
+        app::App::default().run()
     }
-}
-
-fn runtime(mut container: Window) -> Result<(), FltkError> {
-    app::add_idle3(move |_| {
-        container.do_callback();
-        std::thread::sleep(std::time::Duration::from_millis(20));
-    });
-    app::App::default().run()
 }
 
 pub fn is_close() -> bool {
@@ -167,23 +169,16 @@ pub fn set_theme(theme: usize) {
 }
 
 pub trait Paint {
-    fn welcome(&self, title: &str, menu: &[&[&str]]);
-    fn background(&self);
+    fn draw_welcome(&self, title: &str, menu: &[&[&str]]);
+    fn draw_background(&self, color: Color);
 }
 
 impl Paint for Window {
-    fn background(&self) {
-        draw::draw_rect_fill(0, 0, self.width(), self.height(), Color::Foreground);
-        draw::draw_rect_fill(
-            PAD,
-            PAD,
-            self.width() - 2 * PAD,
-            self.height() - 2 * PAD,
-            Color::Background,
-        );
-        draw::set_font(Font::CourierBold, 22);
+    fn draw_background(&self, color: Color) {
+        draw::draw_rect_fill(0, 0, self.width(), self.height(), color);
     }
-    fn welcome(&self, title: &str, menu: &[&[&str]]) {
+    fn draw_welcome(&self, title: &str, menu: &[&[&str]]) {
+        draw::set_font(Font::CourierBold, 22);
         draw::set_draw_color(Color::Green);
         draw::draw_text2(
             &figleter::FIGfont::standard()
@@ -192,7 +187,7 @@ impl Paint for Window {
                 .unwrap()
                 .to_string(),
             0,
-            self.height() / 3,
+            self.height() / 4,
             self.width(),
             HEIGHT,
             Align::Center,
@@ -212,7 +207,7 @@ impl Paint for Window {
             0,
             self.height() / 4 * 3,
             self.width(),
-            HEIGHT,
+            PAD * 2,
             Align::Center,
         );
     }

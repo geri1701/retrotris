@@ -1,4 +1,4 @@
-use {crate::gui::*, crate::models::tetris::*, std::time};
+use {crate::gui::*, crate::models::tetris::*};
 
 const COLORS: [Color; 7] = [
     Color::Green,
@@ -10,26 +10,14 @@ const COLORS: [Color; 7] = [
     Color::from_hex(0xCB4B16), //orange
 ];
 
+#[derive(Default)]
 pub struct Model {
     score: Score,
     grid: Grid,
     curr: Figure,
     next: Next,
-    time: time::Instant,
     play: bool,
-}
-
-impl Default for Model {
-    fn default() -> Self {
-        Self {
-            score: Score::default(),
-            grid: Grid::default(),
-            curr: Figure::default(),
-            next: Next::default(),
-            time: time::Instant::now(),
-            play: false,
-        }
-    }
+    timer: f32,
 }
 
 impl Model {
@@ -81,7 +69,6 @@ impl Console for Model {
                     Key::Enter => {
                         self.next();
                         self.grid = Grid::default();
-                        self.time = time::Instant::now();
                         self.play = !self.play;
                     }
                     Key::Up | UP => self.rotate(),
@@ -92,42 +79,49 @@ impl Console for Model {
                     Key::Right | RIGHT => self.shift((1, 0)),
                     _ => return false,
                 };
-                window.redraw();
                 true
             }
             _ => false,
         }
     }
+    fn update(&mut self, dt: f32) {
+        if !self.play {
+            return;
+        }
+        self.timer += dt;
+        if self.timer < 1.0 / (3.0 + self.score.get().1 as f32) {
+            return;
+        }
+        self.timer = 0.0;
+        for line in self.grid.find_full_line() {
+            self.grid.0.remove(line);
+            self.grid.0.insert(0, [None; GRID_WIDTH]);
+            self.score.inc();
+        }
+        if !self.down() {
+            self.play = false;
+        }
+        self.score.update();
+    }
     fn draw(&self, window: &mut Window) {
-        window.background();
+        window.draw_background(Color::Background);
         if self.play {
             draw::draw_rect_fill(0, 0, window.width(), window.height(), Color::Foreground);
             let (x, y, h) = draw_field(window, &self.grid.draw(&self.curr));
             let (x, y) = draw_next(x, y, h, self.next.draw());
             draw_score(x, y, h, self.score.get().0);
         } else {
-            window.welcome(
-                NAME,
-                &[&["PRESS ENTER", "for play"], &["PRESS ESC", "for exit"]],
+            window.draw_welcome(
+                "Tetris",
+                &[
+                    &["PRESS ENTER", "for play"],
+                    &["PRESS ESC", "for exit"],
+                    &["PRESS UP", "for rotate"],
+                    &["PRESS DOWN", "for down"],
+                    &["PRESS LEFT", "for left"],
+                ],
             );
         }
-    }
-    fn update(&mut self, window: &mut Window) {
-        if self.play
-            && self.time.elapsed() >= time::Duration::from_millis(500 - 50 * self.score.get().1)
-        {
-            self.time = time::Instant::now();
-            for line in self.grid.find_full_line() {
-                self.grid.0.remove(line);
-                self.grid.0.insert(0, [None; GRID_WIDTH]);
-                self.score.inc();
-            }
-            if !self.down() {
-                self.play = false;
-            }
-            self.score.update();
-            window.redraw();
-        };
     }
 }
 
@@ -209,5 +203,3 @@ fn draw_score(x: i32, y: i32, h: i32, v: i32) {
         draw::draw_text2(line, x, yy, line.len() as i32 * h, h, Align::Left);
     }
 }
-
-const NAME: &str = "Game::Tetris";
