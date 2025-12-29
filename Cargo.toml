@@ -10,5 +10,4 @@ keywords = ["game", "graphics"]
 rand = "0.9.1"
 figleter = { version = "0.2.2" }
 comfy-table = "7"
-cascade = "1.0"
 fltk = { version = "1.4" }
