@@ -1,6 +1,5 @@
 pub use {
-    cascade::cascade,
-    comfy_table::{modifiers, presets, Table},
+    comfy_table::{Table, modifiers, presets},
     fltk::{
         app,
         app::event_coords,
@@ -12,10 +11,8 @@ pub use {
         prelude::*,
         window::Window,
     },
-    std::{
-        sync::{Arc, RwLock},
-        time::{Duration, Instant},
-    },
+    rand::Rng,
+    std::time::Instant,
 };
 
 pub const SCREEN_WIDTH: i32 = 960;
@@ -43,16 +40,15 @@ impl Settings {
         app::set_font(self.font.unwrap_or(Font::CourierBold));
         app::set_font_size(self.font_size.unwrap_or(14));
         let (w, h) = self.size.unwrap_or((360, 640));
-        cascade!(
-            Window::default().with_size(w, h).center_screen();
-            ..set_xclass(&self.xclass.unwrap_or("FLTK"));
-            ..size_range(w, h, 0, 0);
-            ..fullscreen(self.fullscreen);
-            ..make_resizable(true);
-            ..set_icon(self.icon.clone());
-            ..end();
-            ..show();
-        )
+        let mut wgt = Window::default().with_size(w, h).center_screen();
+        wgt.set_xclass(self.xclass.unwrap_or("FLTK"));
+        wgt.size_range(w, h, 0, 0);
+        wgt.fullscreen(self.fullscreen);
+        wgt.make_resizable(true);
+        wgt.set_icon(self.icon.clone());
+        wgt.end();
+        wgt.show();
+        wgt
     }
 }
 
@@ -60,27 +56,36 @@ pub trait Console
 where
     Self: Default + 'static,
 {
+    fn load(&mut self, path: &str);
+    fn exit(&self, path: &str);
     fn handle(&mut self, window: &mut Window, event: Event) -> bool;
     fn draw(&self, window: &mut Window);
     fn update(&mut self, dt: f32);
     fn connect(window: &mut Window) {
-        let state = Arc::new(RwLock::new(Self::default()));
+        let path = format!(
+            "{}/.config/{}",
+            std::env::var("HOME").unwrap(),
+            window.xclass().unwrap(),
+        );
+        let state = std::rc::Rc::new(std::cell::RefCell::new(Self::default()));
+        state.borrow_mut().load(&path);
         let mut time = Instant::now();
         window.draw({
             let state = state.clone();
             move |window| {
-                state.write().unwrap().update(time.elapsed().as_secs_f32());
-                state.read().unwrap().draw(window);
+                state.borrow_mut().update(time.elapsed().as_secs_f32());
+                state.borrow().draw(window);
                 time = Instant::now();
             }
         });
         window.handle({
             let state = state.clone();
-            move |window, event| state.write().unwrap().handle(window, event)
+            move |window, event| state.borrow_mut().handle(window, event)
         });
         window.handle_event(Event::Resize);
         window.set_callback(move |window| {
-            if is_close() {
+            if app::event() == Event::Close {
+                state.borrow().exit(&path);
                 window.hide();
             }
         });
@@ -88,16 +93,13 @@ where
     fn run(settings: Settings) -> Result<(), FltkError> {
         let mut window = settings.config();
         Self::connect(&mut window);
-        app::add_idle3(move |_| {
+        const TICK: f64 = 0.02;
+        app::add_timeout3(TICK, move |handle| {
             window.redraw();
-            std::thread::sleep(Duration::from_millis(20));
+            app::repeat_timeout3(TICK, handle);
         });
         app::App::default().run()
     }
-}
-
-pub fn is_close() -> bool {
-    app::event() == Event::Close
 }
 
 pub fn set_theme(theme: usize) {
@@ -168,17 +170,53 @@ pub fn set_theme(theme: usize) {
     app::redraw();
 }
 
-pub trait Paint {
+pub trait Painter {
+    fn draw_rect(&self, x: i32, y: i32, w: i32, h: i32, r: i32, color: Color);
+    fn draw_text(&self, line: &str, x: i32, y: i32, color: Color, align: Align, size: i32);
     fn draw_welcome(&self, title: &str, menu: &[&[&str]]);
     fn draw_background(&self, color: Color);
+    fn draw_overlay(&self, title: &str, subtitle: &str, color: Color);
 }
 
-impl Paint for Window {
+impl Painter for Window {
+    fn draw_rect(&self, x: i32, y: i32, w: i32, h: i32, r: i32, color: Color) {
+        draw::set_draw_color(color);
+        draw::draw_rounded_rectf(x, y, w, h, r);
+    }
+    fn draw_text(&self, line: &str, x: i32, y: i32, color: Color, align: Align, size: i32) {
+        draw::set_font(Font::CourierBold, size);
+        draw::set_draw_color(color);
+        let (w, h) = draw::measure(line, false);
+        draw::draw_text2(line, x, y, w, h, align);
+    }
+    fn draw_overlay(&self, title: &str, subtitle: &str, color: Color) {
+        draw::set_draw_color(color);
+        draw::set_font(Font::CourierBold, 42);
+        let (mut w, mut h) = draw::measure(title, false);
+        draw::draw_text2(
+            title,
+            self.w() / 2 - w / 2,
+            self.h() / 3 - h,
+            w,
+            h,
+            Align::Left,
+        );
+        draw::set_font(Font::CourierBold, 24);
+        (w, h) = draw::measure(subtitle, false);
+        draw::draw_text2(
+            subtitle,
+            self.w() / 2 - w / 2,
+            self.h() / 2 - h,
+            w,
+            h,
+            Align::Left,
+        );
+    }
     fn draw_background(&self, color: Color) {
-        draw::draw_rect_fill(0, 0, self.width(), self.height(), color);
+        draw::draw_rect_fill(0, 0, self.w(), self.h(), color);
     }
     fn draw_welcome(&self, title: &str, menu: &[&[&str]]) {
-        draw::set_font(Font::CourierBold, 22);
+        draw::set_font(Font::CourierBold, 20);
         draw::set_draw_color(Color::Green);
         draw::draw_text2(
             &figleter::FIGfont::standard()
@@ -187,8 +225,8 @@ impl Paint for Window {
                 .unwrap()
                 .to_string(),
             0,
-            self.height() / 4,
-            self.width(),
+            self.h() / 4,
+            self.w(),
             HEIGHT,
             Align::Center,
         );
@@ -205,9 +243,9 @@ impl Paint for Window {
             }
             .to_string(),
             0,
-            self.height() / 4 * 3,
-            self.width(),
-            PAD * 2,
+            self.h() / 3 * 2,
+            self.w(),
+            HEIGHT,
             Align::Center,
         );
     }

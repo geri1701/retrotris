@@ -1,5 +1,5 @@
 # retrotris
-![Gameplay](assets/swappy-20230813_213201.png)
+![Gameplay](assets/scrot.png)
 retrotris is a Rust remake of the classic falling blocks puzzle game, created and maintained by a growing group of contributors. It showcases Rust-powered game development and uses the [FLTK](https://crates.io/crates/fltk) crate for its user interface.
 
 ## Features
