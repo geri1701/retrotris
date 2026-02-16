@@ -11,6 +11,8 @@ pub struct Model {
 }
 
 impl Console for Model {
+    fn load(&mut self, _path: &str) {}
+    fn exit(&self, _path: &str) {}
     fn handle(&mut self, window: &mut Window, event: Event) -> bool {
         match event {
             Event::Focus => true,

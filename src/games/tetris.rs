@@ -53,6 +53,8 @@ impl Model {
 }
 
 impl Console for Model {
+    fn load(&mut self, _path: &str) {}
+    fn exit(&self, _path: &str) {}
     fn handle(&mut self, window: &mut Window, event: Event) -> bool {
         match event {
             Event::Focus => true,
@@ -116,9 +118,6 @@ impl Console for Model {
                 &[
                     &["PRESS ENTER", "for play"],
                     &["PRESS ESC", "for exit"],
-                    &["PRESS UP", "for rotate"],
-                    &["PRESS DOWN", "for down"],
-                    &["PRESS LEFT", "for left"],
                 ],
             );
         }
@@ -186,20 +185,20 @@ fn draw_next(x: i32, y: i32, height: i32, table: [[Option<usize>; 4]; 4]) -> (i3
 }
 
 fn draw_score(x: i32, y: i32, h: i32, v: i32) {
-    let mut yy = y + 1 + h;
     draw::set_draw_color(Color::Background2);
     draw::set_font(Font::CourierBold, h);
-    draw::draw_text2(&format!("Score:\t{v}"), x, yy, WIDTH, h, Align::Left);
+    let mut yy = y;
     for line in [
+        &format!("Score:\t{v}"),
         "PRESS:",
-        "\t<UP>\trotate",
-        "\t<DOWN>\tfast down",
-        "\t<LEFT>\tmove left",
-        "\t<RIGHT>\tmove right",
-        "\t<ENTER>\texit to menu",
-        "\t<ESC>\texit from game",
+        "  <UP>    rotate",
+        "  <DOWN>  fast down",
+        "  <LEFT>  move left",
+        "  <RIGHT> move right",
+        "  <ESC>   exit from game",
     ] {
-        yy += 2 * h + 2;
-        draw::draw_text2(line, x, yy, line.len() as i32 * h, h, Align::Left);
+        let (w, h) = draw::measure(line, false);
+        yy += h;
+        draw::draw_text2(line, x, yy, w, h, Align::Left);
     }
 }

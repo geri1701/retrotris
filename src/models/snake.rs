@@ -51,8 +51,8 @@ impl Snake {
     }
     pub fn update(&mut self) -> Option<(i32, i32)> {
         let (mut x, mut y) = self.body[0];
-        x = check_x(x + self.direction.0);
-        y = check_y(y + self.direction.1);
+        x = check_limit(x + self.direction.0, COLS);
+        y = check_limit(y + self.direction.1, ROWS);
         if self.body.contains(&(x, y)) {
             None
         } else {
@@ -67,18 +67,12 @@ impl Snake {
     }
 }
 
-fn check_y(coord: i32) -> i32 {
-    match coord {
-        -1..0 => ROWS - 1,
-        0..ROWS => coord,
-        _ => 0,
-    }
-}
-
-fn check_x(coord: i32) -> i32 {
-    match coord {
-        -1..0 => COLS - 1,
-        0..COLS => coord,
-        _ => 0,
+fn check_limit(coord: i32, limit: i32) -> i32 {
+    if coord < 0 {
+        limit - 1
+    } else if coord > limit {
+        0
+    } else {
+        coord
     }
 }

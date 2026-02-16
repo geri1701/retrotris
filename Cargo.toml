@@ -1,7 +1,7 @@
 [package]
 name = "retrotris"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 license = "MIT"
 authors = ["Gerhard Schwanzer <geri@sdf.org>"]
 keywords = ["game", "graphics"]
@@ -10,5 +10,4 @@ keywords = ["game", "graphics"]
 rand = "0.9.1"
 figleter = { version = "0.2.2" }
 comfy-table = "7"
-cascade = "1.0"
 fltk = { version = "1.4" }

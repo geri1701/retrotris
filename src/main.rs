@@ -11,6 +11,7 @@ pub enum Game {
     Snake,
     Bird,
     Pong,
+    Runner,
 }
 
 impl Game {
@@ -19,7 +20,8 @@ impl Game {
             Self::Tetris => Self::Snake,
             Self::Snake => Self::Bird,
             Self::Bird => Self::Pong,
-            Self::Pong => Self::Tetris,
+            Self::Pong => Self::Runner,
+            Self::Runner => Self::Tetris,
         }
     }
     fn to_str(&self) -> &str {
@@ -28,6 +30,7 @@ impl Game {
             Self::Snake => "Snake",
             Self::Bird => "Bird",
             Self::Pong => "Pong",
+            Self::Runner => "Runner",
         }
     }
     fn to_play(&self, window: &mut Window) {
@@ -36,6 +39,7 @@ impl Game {
             Self::Snake => games::snake::Model::connect(window),
             Self::Bird => games::bird::Model::connect(window),
             Self::Pong => games::pong::Model::connect(window),
+            Self::Runner => games::runner::Model::connect(window),
         }
     }
 }
@@ -44,6 +48,8 @@ impl Game {
 pub struct Model(Game);
 
 impl Console for Model {
+    fn load(&mut self, _path: &str) {}
+    fn exit(&self, _path: &str) {}
     fn update(&mut self, _dt: f32) {}
     fn handle(&mut self, window: &mut Window, event: Event) -> bool {
         match event {
@@ -51,7 +57,10 @@ impl Console for Model {
             Event::KeyDown => {
                 match event_key() {
                     Key::Tab => self.0 = self.0.switch(),
-                    Key::Enter => self.0.to_play(window),
+                    Key::Enter => {
+                        window.set_xclass(self.0.to_str());
+                        self.0.to_play(window);
+                    }
                     Key::Escape => std::process::exit(0),
                     _ => return false,
                 }
