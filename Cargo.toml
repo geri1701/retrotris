@@ -7,7 +7,7 @@ authors = ["Gerhard Schwanzer <geri@sdf.org>"]
 keywords = ["game", "graphics"]
 
 [dependencies]
-rand = "0.9.1"
+rand = "0.10.0"
 figleter = { version = "0.2.2" }
 comfy-table = "7"
 fltk = { version = "1.4" }
