@@ -11,7 +11,7 @@ pub use {
         prelude::*,
         window::Window,
     },
-    rand::Rng,
+    rand::RngExt,
     std::time::Instant,
 };
 

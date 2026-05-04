@@ -23,7 +23,8 @@ jobs:
     - name: Build
       run: |
         sudo bash -c '
-            apt-get update; apt-get install -y lib{x11,xext,xft,xinerama,xcursor,xrender,xfixes,pango1.0,{gl1,glu1}-mesa}-dev
+            apt-get update
+            apt-get install -y lib{x11,xext,xft,xinerama,xcursor,xrender,xfixes,pango1.0,{gl1,glu1}-mesa}-dev
         ' >/dev/null
         cargo build
         cargo clippy

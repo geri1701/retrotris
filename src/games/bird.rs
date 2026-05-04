@@ -1,5 +1,4 @@
 use crate::gui::*;
-use rand::Rng;
 
 const DOWN: i32 = 1;
 const UP: i32 = -8;
