@@ -1,5 +1,5 @@
 use crate::*;
-use rand::Rng;
+use rand::RngExt;
 
 #[derive(Default)]
 pub struct Score(i32, u64);

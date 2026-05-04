@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::RngExt;
 
 pub const GRID_WIDTH: usize = 15;
 pub const GRID_HEIGHT: usize = 30;
