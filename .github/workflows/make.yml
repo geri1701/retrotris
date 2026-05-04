@@ -14,18 +14,21 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
-
+  make:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 120
     steps:
-    - uses: actions/checkout@v3
-    - name: Build
-      run: |
-        sudo bash -c '
-          apt-get update
-          apt-get install -y lib{x11,xext,xft,xinerama,xcursor,xrender,xfixes,pango1.0,{gl1,glu1}-mesa}-dev
-        ' >/dev/null
-        cargo clippy --quiet
-        cargo build --release
-        cargo fmt --check --all
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Build
+        run: |
+          sudo bash -c '
+            apt-get update
+            apt-get install -y lib{x11,xext,xft,xinerama,xcursor,xrender,xfixes,pango1.0,{gl1,glu1}-mesa}-dev
+          ' >/dev/null
+          cargo clippy --quiet
+          cargo build --release
+          cargo fmt --check --all
