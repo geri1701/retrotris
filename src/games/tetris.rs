@@ -115,10 +115,7 @@ impl Console for Model {
         } else {
             window.draw_welcome(
                 "Tetris",
-                &[
-                    &["PRESS ENTER", "for play"],
-                    &["PRESS ESC", "for exit"],
-                ],
+                &[&["PRESS ENTER", "for play"], &["PRESS ESC", "for exit"]],
             );
         }
     }
