@@ -187,7 +187,10 @@ impl Painter for Window {
         draw::draw_text2(
             &{
                 let mut table = Table::new();
-                table.load_preset(presets::UTF8_FULL);
+                table.load_preset(match cfg!(target_os = "windows") {
+                    true => presets::ASCII_FULL,
+                    false => presets::UTF8_FULL,
+                });
                 table.apply_modifier(modifiers::UTF8_ROUND_CORNERS);
                 for row in menu {
                     table.add_row(*row);
